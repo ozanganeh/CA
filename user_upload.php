@@ -2,46 +2,30 @@
 
 //Using Console_CommandLine::addOption() method to add options to the parser.
 require_once 'Console/CommandLine.php';
-$parser = new Console_CommandLine(array(
-   'description' => 'A useful description for your program.',
-   'version'     => '0.0.1', // the version of your program
-));
+$parser = new Console_CommandLine();
+$parser->description = 'A fantastic command line program that does nothing.';
+
 //--file [fileName]. this will take csv file name from user.
 $parser->addOption('FileName', array('long_name'=>'--file', 'action'=>'StoreString'));
-//$result1 = $parser->parse();
 
 //--create_table. this will build the MySQL user table.
-$parser->addOption('CreTbl', array('long_name'=>'--create_table', 'action'=>'StoreTrue'));
-//$result2 = $parser->parse();
+$parser->addOption('CreateTable', array('long_name'=>'--create_table', 'action'=>'StoreTrue'));
 
 //--dry_run. this is used with --file to run the script but no insert into the DB. All parts are executed without altering the database.
 $parser->addOption('DryRun', array('long_name'=>'--dry_run', 'action'=>'StoreTrue'));
-//$result3 = $parser->parse();
 
 //-u. to get MySQL username from command line.
-$parser->addOption('MSu', array('short_name'=>'-u', 'action'=>'StoreString'));
-//$result4 = $parser->parse();
+$parser->addOption('MySQLUsername', array('short_name'=>'-u', 'action'=>'StoreString'));
 
 //-p. to get MySQL password from command line.
-$parser->addOption('MSp', array('short_name'=>'-p', 'action'=>'StoreString'));
-//$result5 = $parser->parse();
-
+$parser->addOption('MySQLPassword', array('short_name'=>'-p', 'action'=>'StoreString'));
 
 //-h. to get MySQL host address from command line.
-$parser->addOption('MSh', array('short_name'=>'-h', 'action'=>'StoreString'));
-//$result6 = $parser->parse();
-
-//-help. outputs the list of directives with details.
-$parser->addOption('HLP', array('long_name'=>'--help', 'action'=>'StoreTrue'));
-//$result7 = $parser->parse();
+$parser->addOption('MySQLHost', array('short_name'=>'-h', 'action'=>'StoreString'));
 
 $result = $parser->parse();
-
 //print_r($result->options);
-
-
 ///////////////////
-
 
 
 if ($result->options['CreTbl']) {//if user asks to create user table in the command line.
@@ -120,8 +104,8 @@ if (!$result->options['CreTbl']){ //no further action is taken if MySQL user tab
 							$data[2] = strtolower($data[2]);
 							echo ($data[2]. "\n");
 						}else{
-							echo "Invalid email address \n";
-							echo "this is the invalid email:" . $data[2]. "\n";
+							echo "Invalid email address:  ". $data[2]. "\n";
+//							echo "this is an invalid email:" . $data[2]. "\n";
 							$data[2] = NULL;
 						}
 					}
