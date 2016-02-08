@@ -1,9 +1,9 @@
 <?php
 
-//Using Console_CommandLine::addOption() method to add options to the parser.
+//Using Console_CommandLine method to add options to the parser.
 require_once 'Console/CommandLine.php';
 $parser = new Console_CommandLine();
-$parser->description = 'A fantastic command line program that does nothing.';
+$parser->description = 'Your guide to use command line options:';
 
 //--file [fileName]. this will take csv file name from user.
 $parser->addOption('FileName', array('long_name'=>'--file', 'description' => 'Use this option to specify users csv finename. How to use: user_upload.php --file FILENAME.csv','action'=>'StoreString'));
@@ -24,11 +24,12 @@ $parser->addOption('MySQLUsername', array('short_name'=>'-u', 'description' => '
 $parser->addOption('MySQLPassword', array('short_name'=>'-p', 'description' => 'Use this option to input DB password. How to use: user_upload.php -p PASSWORD - there is no password by default.','action'=>'StoreString'));
 
 //-h. to get MySQL host address from command line.
-$parser->addOption('MySQLHost', array('short_name'=>'-h', 'description' => 'Use this option to input DB host address. How to use: user_upload.php -h HOSTADDRESS','action'=>'StoreString'));
+$parser->addOption('MySQLHost', array('short_name'=>'-h', 'description' => 'Use this option to input DB host address. How to use: user_upload.php -h HOSTADDRESS - default host address is "localhost"','action'=>'StoreString'));
 
 $result = $parser->parse();
 //print_r($result->options);
 ///////////////////
+
 
 //this function is used to connect to the database.
 function connectToDB($DBuname, $DBpass, $DBhost ){
@@ -39,7 +40,7 @@ function connectToDB($DBuname, $DBpass, $DBhost ){
 	}
 	//create a database named Catalyst, if it is not already created.
 	if(mysql_select_db('Catalyst', $con)){
-		echo "Databse exists. \n";
+		echo "Catalyst databse already exists. \n";
 	}else{
 		if (mysql_query("CREATE DATABASE Catalyst")){
 			echo "Database was created successfully. \n";
@@ -51,8 +52,6 @@ function connectToDB($DBuname, $DBpass, $DBhost ){
 }
 //this function is used to create User table
 function creatUserTBL($con){
-	//create a table named Users, if it is not already created.
-	$TBexist = mysql_query("SHOW TABLES LIKE 'Users'");
 
 	// Select 1 from table_name will return false if the table does not exist.
 	$TBexist = mysql_query('select 1 from `Users` LIMIT 1');
@@ -67,41 +66,47 @@ function creatUserTBL($con){
 		Unique (Email)
 		)";
 		//execute the query, and creat a table with four columns. ID (as primary key), name, surname, and email.
-		//email is set to be Unique Index. if there is no unique index, the assumtion is made that , it is not a valid user and his/her details are not be inserted into the table
-		//$check = mysql_query($sql,$con);
+		//email is set to be Unique Index. if there is no unique index, the assumtion is that, it is not a valid
+		//user and his/her details are not be inserted into the table
 		if (mysql_query($sql,$con)){
-			echo "The User table is created.\n";
+			echo "The User table was created.\n";
 		}else
 			echo "Error: " . mysql_error();
-	 }		
+	 }else
+		 echo "Users table already exists in the database. \n";
 }
 //This function is used to Insert the data (name , surname and email) of each user into the user table.
 function InsertDataToUserTBL($name, $surname, $email, $con){
-	//the next lines are used to insert the data of a row into user table.
-		mysql_select_db("Catalyst", $con);
-		
-		$sql = "INSERT INTO Users (Name, Surname, Email) VALUES ('$name', '$surname', '$email')";
 
-		$check = mysql_query($sql,$con);
-		if (isset ($check))
+		mysql_select_db("Catalyst", $con);// coonects to DB catalyst
+		//sql query to insert data into the table
+		//$sql = "INSERT INTO Users (Name, Surname, Email) VALUES ('$name', '$surname', '$email')";
+
+		$sql = "INSERT INTO Users (Name, Surname, Email) VALUES ('$name', '$surname', '$email')
+		WHERE NOT EXISTS (SELECT 1 
+                     FROM Users 
+                    WHERE Email = '$email')";
+	
+		
+		$check = mysql_query($sql,$con);//checks if the query was executed correctly.
+		if ($check)
 			echo "The user ". $name . "'s info is added to the Users Table \n";
 		else
-			echo "No new data added to the users table. The User table is up-to-date. \n";	
-	
+			echo "The user: ". $name . " already exists in the dataset. \n";	
 }
-//this function retuens the data in a row of csv file
+//this function retuens the data in a row of csv file. capitalizes the first letter of name and surname and lowercases email addresses. it also checks email validity.
 function ReadDataRows ($rowdata, $num){
 	for ($c=0; $c < $num; $c++) {
-		if ($c < 2){// email is in the 3rd field which needs to be validated. thus,, the if condition separates the first two cols. from the third
-			$rowdata[$c] = ucfirst(strtolower($rowdata[$c]));//strtolower function convers all the characters to lower case and ucfirst function capitalizes the first letter.
+		if ($c < 2){// email is in the 3rd column which needs to be validated. thus, the if condition separates the first two cols. from the third
+			$rowdata[$c] = ucfirst(strtolower($rowdata[$c]));//strtolower function convers all the characters to lowercase and ucfirst function capitalizes the first letter.
 			//echo $data[$c]. "\n";		
 		}else{
 			if(filter_var($rowdata[$c], FILTER_VALIDATE_EMAIL)){ //check email validaity
-				$rowdata[$c] = strtolower($rowdata[$c]);
+				$rowdata[$c] = strtolower($rowdata[$c]);//sets all email character to lowercase.
 				//echo ($data[2]. "\n");
 			}else{
 				//echo "Invalid email address:  ". $rowdata[2]. "\n";
-				$rowdata[$c] = NULL;
+				$rowdata[$c] = NULL; //if it is not a valid email, it is set to Null.
 			}
 		}
 	}
@@ -132,11 +137,12 @@ if (isset ($result->options['FileName'])) { //if name of the csv file , provided
 if ($result->options['CreateTable']) {//if user asks to create user table in the command line.
 	$con = connectToDB($uname, $passw, $hostAdd);
 	creatUserTBL($con);
+	mysql_close($con); //closing coonection to mysql.
 }
-elseif ($result->options['DryRun']){
-	//reads the data from user.csv file. capitalized the first letter of name and surname and lower case email addresses. check email validity.
+elseif ($result->options['DryRun']){//reads the data from user.csv file. no changes to DB.
 	$row = 1;
 	echo "Users info from the csv file: \n";
+	echo "Display format is: \nNAME: user's name, SURNAME: user's surname, EMAIL: user's email \n";
 	if (($handle = fopen($filename, "r")) !== FALSE) {
 		while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
 			$num = count($data); //variable num shows number of fields in each row.
@@ -153,9 +159,9 @@ elseif ($result->options['DryRun']){
 		}
 		fclose($handle);
 	}
-}elseif ($result->options['InsertData']){
-	$con = connectToDB($uname, $passw, $hostAdd);
-	creatUserTBL($con);
+}elseif ($result->options['InsertData']){ //inserts data into users table. check special character which mysql prevents inserting
+	$con = connectToDB($uname, $passw, $hostAdd); //connects to DB
+	creatUserTBL($con); //creat users table if not already created.
 	$row = 1;
 	if (($handle = fopen($filename, "r")) !== FALSE) {
 		while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -170,12 +176,11 @@ elseif ($result->options['DryRun']){
 					$rowdata[0] = str_replace("'","\'",$rowdata[0]);
 					$rowdata[1] = str_replace("'","\'",$rowdata[1]);
 					$rowdata[2] = str_replace("'","\'",$rowdata[2]);	
-					
-					InsertDataToUserTBL($rowdata[0], $rowdata[1], $rowdata[2], $con);
+					InsertDataToUserTBL($rowdata[0], $rowdata[1], $rowdata[2], $con);//calls the function to insert data
 			}
 		}
 	fclose($handle);
-	mysql_close($con); //closing coonection to mysql if existed.
+	mysql_close($con); //closing coonection to mysql.
 	}
 }
 ?>
